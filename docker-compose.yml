@@ -1,0 +1,8 @@
+services:
+    60s:
+        image: shinsenter/phpfpm-nginx:php7.4-alpine
+        volumes:
+            - ./:/var/www/html
+            - ./nginx-60s.conf:/etc/nginx/sites-enabled/00-default.conf
+        ports:
+            - 80:80

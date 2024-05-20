@@ -1,0 +1,9 @@
+# Logs
+logs
+*.log
+tmp
+/build
+
+.cache
+\#cache
+cache
