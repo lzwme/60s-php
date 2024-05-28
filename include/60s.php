@@ -4,7 +4,7 @@ require_once 'utils.php';
 
 function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
 {
-    $api = 'https://www.zhihu.com/api/v4/columns/c_1715391799055720448/items?limit=5';
+    $api = 'https://www.zhihu.com/api/v4/columns/c_1715391799055720448/items?limit=8';
     $reg = '/<p\s+data-pid=[^<>]+>([^<>]+)<\/p>/';
     $today = date('Y-m-d', time() + 8 * 3600 - (int) $offset * 24 * 3600);
     $cachefile = '60s_' . $today . '.json';
