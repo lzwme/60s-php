@@ -1,4 +1,7 @@
 <?php
+// error_reporting(E_ALL);
+// ini_set("display_errors", '1');
+
 // 分类
 $cate = $_GET['t'] ?? $_GET['type'] ?? $_GET['cate'] ?? '60s';
 // 格式

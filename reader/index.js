@@ -176,7 +176,7 @@ const R = {
       el.news.innerHTML = newsHtmlList.join('');
       // date 时间
       document.getElementById('date').innerHTML =
-        currentConfig.title + ` [ ${data.updated ? new Date(data.updated).toLocaleString() : new Date().toLocaleString()} ]`;
+        currentConfig.title + ` [ ${data.date || new Date(data.updated || Date.now()).toLocaleString()} ]`;
       // 一言
       if (String(data.tip).includes('【微语】')) {
         document.getElementById('weiyu').innerHTML = data.tip.replace('【微语】', '');

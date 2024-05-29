@@ -10,12 +10,12 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
     $cachefile = '60s_' . $today . '.json';
 
     $finalData = cacheGet($cachefile);
+    $fromCache = isset($finalData) && is_array($finalData['result']);
     $newData = '';
 
     if (!$finalData) {
         $response = file_get_contents($api);
         $data = json_decode($response, true);
-
 
         if ($data && is_array($data['data'])) {
             foreach ($data['data'] as $item) {
@@ -23,6 +23,8 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
                 $url = $item['url'] ?? '';
                 $title_image = $item['title_image'] ?? '';
                 $updated = $item['updated'] ?? 0;
+                preg_match('/(\d{4}年.+星期.+农历[^<]+)</', $content, $matches);
+                $date = $matches[1] ?? '';
 
                 $contents = preg_match_all($reg, $content, $matches);
                 $result = array_map(function ($e) {
@@ -34,6 +36,7 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
                         'url' => $url,
                         'result' => $result,
                         'title_image' => $title_image,
+                        'date' => $date,
                         'updated' => $updated * 1000,
                     ];
 
@@ -72,9 +75,11 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
             return responseWithBaseRes([
                 'news' => $news,
                 'tip' => $tip,
+                'date' => $finalData['date'],
                 'updated' => $finalData['updated'] ?? 0,
                 'url' => $finalData['url'] ?? '',
                 'cover' => $finalData['title_image'] ?? '',
+                'fromCache' => $fromCache,
             ]);
         } else {
             return implode("\n", array_merge($news, [$tip]));
