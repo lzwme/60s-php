@@ -14,7 +14,9 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
     $newData = '';
 
     if (!$finalData) {
-        $response = file_get_contents($api);
+        // $response = file_get_contents($api);
+        $cookie = '__zse_ck=001_cjC6Wf90IZe7+HxE/Qj3P6tzcGcI9f=5eVTL/o+goNmk2ofTk+Bs/cbs=zZAeRN4HXD5/uBdlcQXR1NuBYcVqjuB=WJ1Fg1C+Lr0jyKKIuJSsobkrc7fl+b/qGUO5WFl';
+        ['res' => $response] = httpCurl($api, 'GET', null, ["cookie: $cookie"]);
         $data = json_decode($response, true);
 
         if ($data && is_array($data['data'])) {
