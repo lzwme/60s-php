@@ -83,13 +83,12 @@
 首先，下载 60s 目录至本地：
 
 ```bash
-wget https://mirror.ghproxy.com/github.com/lzwme/blog-examples/archive/refs/heads/main.zip
+wget https://mirror.ghproxy.com/github.com/lzwme/60s-php/archive/refs/heads/main.zip
 unzip main.zip
-mv blog-examples-main/src/x/iapi/60s ./
-/bin/rm -rf mv blog-examples-main
+ls 60s-php-main
 ```
 
-然后基于 PHP 部署一个基本的 Web 服务，将 Web 服务根目录指向 `60s` 目录即可。nginx 配置请参考：[./nginx-60s.conf](nginx-60s.conf)
+然后基于 PHP 部署一个基本的 Web 服务，将 Web 服务根目录指向 `60s-php-main` 目录即可。nginx 配置请参考：[./nginx-60s.conf](nginx-60s.conf)
 
 ### Docker 部署
 
@@ -100,6 +99,8 @@ mv blog-examples-main/src/x/iapi/60s ./
 ```bash
 docker-compose up -d
 ```
+
+最后访问 http://localhost:8060/reader 即可。
 
 ## 相关
 
