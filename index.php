@@ -54,7 +54,7 @@ switch ($cate) {
 header('Content-Type: application/json');
 
 if (!isset($_REQUEST['nocache'])) {
-    $seconds_to_cache = 600; // 10 分钟缓存
+    $seconds_to_cache = 60; // 1 分钟缓存
     header("Expires: " . gmdate("D, d M Y H:i:s", time() + $seconds_to_cache) . " GMT");
     header("Cache-Control: max-age=$seconds_to_cache");
     header("Cache-Control: public");

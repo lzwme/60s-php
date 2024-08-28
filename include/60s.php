@@ -5,7 +5,6 @@ require_once 'utils.php';
 function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
 {
     $api = 'https://www.zhihu.com/api/v4/columns/c_1715391799055720448/items?limit=8';
-    $reg = '/<p\s+data-pid=[^<>]+>([^<>]+)<\/p>/';
     $today = date('Y-m-d', time() + 8 * 3600 - (int) $offset * 24 * 3600);
     $cachefile = '60s_' . $today . '.json';
 
@@ -15,16 +14,53 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
 
     if (!$finalData) {
         // $response = file_get_contents($api);
-        $cookie = '__zse_ck=001_cjC6Wf90IZe7+HxE/Qj3P6tzcGcI9f=5eVTL/o+goNmk2ofTk+Bs/cbs=zZAeRN4HXD5/uBdlcQXR1NuBYcVqjuB=WJ1Fg1C+Lr0jyKKIuJSsobkrc7fl+b/qGUO5WFl';
+        // $cookie = '__zse_ck=001_J3v0qhj4h2dUNxcD8h=3oNv3dmOO+amBsmT=8u+YeTZgTaxMvR526BNVNWDAmJ+Qrh7oUmL71X+5yYlm5J5qR8a45M6u/uZbU9fb5FijqaKcVlbsrvPkfkiXE6AqcIgK';
+        $cookie = getenv('ZHIHU_COOKIE');
+        if (!$cookie) $cookie = '__zse_ck=001_J3v0qhj4h2dUNxcD8h=3oNv3dmOO+amBsmT=8u+YeTZgTaxMvR526BNVNWDAmJ+Qrh7oUmL71X+5yYlm5J5qR8a45M6u/uZbU9fb5FijqaKcVlbsrvPkfkiXE6AqcIgK; z_c0=2|1:0|10:1724806971|4:z_c0|80:MS4xdWtxX0F3QUFBQUFtQUFBQVlBSlZUVHZGdTJlTDhIRVZkV2ptSy1rdEw2eWdtd29iRkFfbWRRPT0=|7b058dcac62d2af47ed8d5338f474f753cd8e55beb0d316f3874d3a154133873';
+
         ['res' => $response] = httpCurl($api, 'GET', null, ["cookie: $cookie"]);
         $data = json_decode($response, true);
 
         if ($data && is_array($data['data'])) {
+            $reg = '/<p\s+data-pid=[^<>]+>([^<>]+)<\/p>/';
+
             foreach ($data['data'] as $item) {
+                $updated = $item['updated'] ?? $item['created'] ?? 0;
+                $day = date('Y-m-d', (int) $updated + 8 * 3600);
+                $cachefile = '60s_' . $day . '.json';
+
+                if ($item['content_need_truncated'] === true) {
+                    // 截断的内容，且已存在缓存，则忽略此条数据
+                    if (file_exists($cachefile)) {
+                        continue;
+                    }
+
+                    // 从页面获取完整的 content
+                    ['res' => $response] = httpCurl($item['url'], 'GET', null, ["cookie: $cookie", "Referer: {$item['url']}"]);
+
+                    if ($response) {
+                        preg_match('/<script id="js-initialData" type="text\/json">(\{.+\})<\/script>/', $response, $matches);
+                        $initData = $matches[1] ?? '';
+                        if ($initData) {
+                            $initData = json_decode($initData, true);
+
+                            $c = $initData['initialState']['entities']['articles'][$item['id']];
+                            if (isset($c)) {
+                                $item = array_merge($item, $c);
+                                $item['content_need_truncated'] = false;
+                            }
+                        }
+                    }
+
+                    if ($item['content_need_truncated'] === true) {
+                        continue;
+                    }
+                }
+
                 $content = $item['content'] ?? '';
                 $url = $item['url'] ?? '';
                 $title_image = $item['title_image'] ?? '';
-                $updated = $item['updated'] ?? 0;
+
                 preg_match('/(\d{4}年.+星期.+农历[^<]+)</', $content, $matches);
                 $date = $matches[1] ?? '';
 
@@ -42,8 +78,6 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
                         'updated' => $updated * 1000,
                     ];
 
-                    $day = date('Y-m-d', (int) $updated + 8 * 3600);
-                    $cachefile = '60s_' . $day . '.json';
                     cacheSet($cachefile, $fData);
 
                     if ($today === $day) {
