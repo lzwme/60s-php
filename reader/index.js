@@ -30,6 +30,7 @@ const config = {
 const el = {
   bing: document.getElementById('bing'),
   weiyu: document.querySelector('#weiyu'),
+  write: document.querySelector('#write'),
   newsTitle: document.getElementById('news_title'),
   news: document.getElementById('news'),
   btn: document.querySelector('.switch_btn'),
@@ -190,6 +191,35 @@ const R = {
 
     NProgress.done();
   },
+  initFontSize() {
+    const setFontSize = fontSize => {
+      if (!fontSize) fontSize = +localStorage.getItem('60s_font_size') || 16;
+
+      if (fontSize < 12) {
+        h5Utils.toast('字体大小不能小于12px');
+        return false;
+      }
+
+      if (fontSize > 36) {
+        h5Utils.toast('字体大小不能大于36px');
+        return false;
+      }
+
+      localStorage.setItem('60s_font_size', fontSize);
+      el.write.style.fontSize = fontSize + 'px';
+      return true;
+    };
+    let fontSize = +localStorage.getItem('60s_font_size') || 16;
+
+    setFontSize(fontSize);
+
+    document.querySelector('.font-minus').addEventListener('click', () => {
+      if (!setFontSize(--fontSize)) fontSize++;
+    });
+    document.querySelector('.font-add').addEventListener('click', () => {
+      if (!setFontSize(++fontSize)) fontSize--;
+    });
+  },
   async init() {
     const re = /type=([a-z0-9]+)/.exec(location.href);
     if (re && re[1] in config.type) R.currentType = re[1];
@@ -199,6 +229,7 @@ const R = {
     R.loadYiyan();
     R.loadBingImg();
     R.loadNews();
+    R.initFontSize();
   },
 };
 
