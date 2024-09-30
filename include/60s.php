@@ -2,7 +2,7 @@
 
 require_once 'utils.php';
 
-function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
+function fetch60s($encode = 'json', $offset = 0, $isV1 = false, $force = false)
 {
     $api = 'https://www.zhihu.com/api/v4/columns/c_1715391799055720448/items?limit=8';
     $today = date('Y-m-d', time() + 8 * 3600 - (int) $offset * 24 * 3600);
@@ -12,11 +12,11 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false)
     $fromCache = isset($finalData) && is_array($finalData['result']);
     $newData = '';
 
-    if (!$finalData) {
+    if (!$finalData || $force) {
         // $response = file_get_contents($api);
         // $cookie = '__zse_ck=001_J3v0qhj4h2dUNxcD8h=3oNv3dmOO+amBsmT=8u+YeTZgTaxMvR526BNVNWDAmJ+Qrh7oUmL71X+5yYlm5J5qR8a45M6u/uZbU9fb5FijqaKcVlbsrvPkfkiXE6AqcIgK';
         $cookie = getenv('ZHIHU_COOKIE');
-        if (!$cookie) $cookie = '__zse_ck=001_J3v0qhj4h2dUNxcD8h=3oNv3dmOO+amBsmT=8u+YeTZgTaxMvR526BNVNWDAmJ+Qrh7oUmL71X+5yYlm5J5qR8a45M6u/uZbU9fb5FijqaKcVlbsrvPkfkiXE6AqcIgK; z_c0=2|1:0|10:1724806971|4:z_c0|80:MS4xdWtxX0F3QUFBQUFtQUFBQVlBSlZUVHZGdTJlTDhIRVZkV2ptSy1rdEw2eWdtd29iRkFfbWRRPT0=|7b058dcac62d2af47ed8d5338f474f753cd8e55beb0d316f3874d3a154133873';
+        if (!$cookie) $cookie = '__zse_ck=003_bnW9isRsE7j=GUdObPd7xeW3EOegV2wwAOwU=9x1xxsLiFCd+RTiESdH9SkbwcnH/hJvOlSgQyJPsnq/pzKC5kw4GjnYepAtr1Wm1uyb50xb; z_c0=2|1:0|10:1727679662|4:z_c0|92:Mi4xUnB2ZlZnQUFBQUFBQUpJMVRZRlFHU1lBQUFCZ0FsVk5ycHJuWndBTGZYaXNkZm9uUHV4TVUwRVJkS3cxMF9rZXpR|153bfe8d42e07be9b26d6067a7923aba29efbeb1a76b09a623e0d8a9d8e74540';
 
         ['res' => $response] = httpCurl($api, 'GET', null, ["cookie: $cookie"]);
         $data = json_decode($response, true);

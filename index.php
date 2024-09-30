@@ -6,6 +6,7 @@
 $cate = $_GET['t'] ?? $_GET['type'] ?? $_GET['cate'] ?? '60s';
 // 格式
 $encode = $_GET['e'] ?? $_GET['encode'] ?? 'json';
+$nocache = isset($_REQUEST['nocache']);
 
 $result = '';
 
@@ -47,13 +48,13 @@ switch ($cate) {
     case '60s':
     default:
         require 'include/60s.php';
-        $result = fetch60s($encode, $_GET['offset'] ?? 0, isset($_GET['v1']));
+        $result = fetch60s($encode, $_GET['offset'] ?? 0, isset($_GET['v1']), $nocache);
         break;
 }
 
 header('Content-Type: application/json');
 
-if (!isset($_REQUEST['nocache'])) {
+if (!$nocache) {
     $seconds_to_cache = 60; // 1 分钟缓存
     header("Expires: " . gmdate("D, d M Y H:i:s", time() + $seconds_to_cache) . " GMT");
     header("Cache-Control: max-age=$seconds_to_cache");
