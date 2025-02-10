@@ -3,8 +3,8 @@
 [在线浏览 https://lzw.me/x/60s](https://lzw.me/x/60s)
 
 > 「60s看世界」免费快速的 API 集合，60s 带你看世界、哔哩/微博/抖音/知乎/头条热搜、汇率换算、Bing 壁纸等
-
-> 60s 数据目前来源于这个[知乎专栏](https://www.zhihu.com/column/c_1715391799055720448)，原专栏在[这里](https://www.zhihu.com/column/c_1261258401923026944)，但是原专栏已不在知乎更新，这个新的专栏貌似是搬运的，希望它能坚持更新下去吧 🙏。
+>
+> 参考 `vikiboss/60s` 实现的 PHP 版本。主要是直接在已有 PHP 服务下上传为一个子目录即可使用，实现服务简单部署。
 
 ## 🪵 API 目录
 
@@ -80,29 +80,49 @@
 
 ### 直接部署
 
-首先，下载 60s 目录至本地：
+首先，下载 `60s` 目录至本地：
 
 ```bash
-wget https://mirror.ghproxy.com/github.com/lzwme/60s-php/archive/refs/heads/main.zip
-unzip main.zip
-ls 60s-php-main
+wget https:///ghfast.top/github.com/lzwme/60s-php/archive/refs/heads/main.zip
+unzip main.zip && mv 60s-php-main 60s
+ls 60s
 ```
 
-然后基于 PHP 部署一个基本的 Web 服务，将 Web 服务根目录指向 `60s-php-main` 目录即可。nginx 配置请参考：[./nginx-60s.conf](nginx-60s.conf)
+然后基于 PHP 部署一个基本的 Web 服务，将 Web 服务根目录指向 `60s` 目录即可。nginx 配置请参考：[./nginx-60s.conf](nginx-60s.conf)
 
 ### Docker 部署
 
-首先拉取镜像：
+首先下载 `60s` 目录至本地目录，如 `/home/www/60s`。
 
-首先下载 `60s` 目录至本地目录，如 `/home/www/60s`。然后基于 `docker-compose` 部署，进入 `60s` 目录，然后执行如下命令即可：
+**基于 docker 命令：**
 
 ```bash
+cd /home/www/60s
+
+# 拉取 php7.4 镜像
+docker pull shinsenter/phpfpm-nginx:php7.4-alpine
+
+# 启动
+docker run -d \
+  --name 60s \
+  -v "$(pwd)/:/var/www/html" \
+  -v "$(pwd)/nginx-60s.conf:/etc/nginx/sites-enabled/00-default.conf" \
+  -p 8060:80 \
+  shinsenter/phpfpm-nginx:php7.4-alpine
+```
+
+**基于 `docker-compose`：**
+
+进入 `60s` 目录，然后执行如下命令即可：
+
+```bash
+cd /home/www/60s
 docker-compose up -d
 ```
 
-最后访问 http://localhost:8060/reader 即可。
+最后访问 `http://localhost:8060/reader` 即可。
 
 ## 相关
 
-- [「60s」免费快速的 API 集合 【deno 版本】](https://github.com/vikiboss/60s)
-- [https://github.com/flow2000/news](https://github.com/flow2000/news)
+- API 参考： [「60s」免费快速的 API 集合 【deno 版本】](https://github.com/vikiboss/60s)
+- reader 参考：[https://github.com/flow2000/news](https://github.com/flow2000/news)

@@ -77,7 +77,7 @@ function cacheSet($key, $data, $maxAge = 0)
     ]));
 }
 
-function cacheGet($key)
+function cacheGet($key, $defaults = null)
 {
     global $CACHE_DIR;
     $filepath = $CACHE_DIR . (substr(strrchr($key, '.'), 1) == 'json' ? $key : md5($key));
@@ -92,7 +92,7 @@ function cacheGet($key)
         unlink($filepath);
     }
 
-    return;
+    return $defaults;
 }
 
 function httpCurl($url, $method = 'GET', $postfields = null, $headers = null, $debug = false)
