@@ -7,7 +7,7 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false, $force = false)
     return fetch60sFromWechat($encode, $offset, $isV1, $force);
 
     $api       = 'https://www.zhihu.com/api/v4/columns/c_1715391799055720448/items?limit=8';
-    $today     = date('Y-m-d', time() + 8 * 3600 - (int) $offset * 24 * 3600);
+    $today     = date('Y-m-d', time() - (int) $offset * 24 * 3600);
     $cachefile = '60s_' . $today . '.json';
 
     $finalData = cacheGet($cachefile);
