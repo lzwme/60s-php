@@ -3,25 +3,35 @@ require_once 'utils.php';
 
 function fetchZhihu($encode = 'json')
 {
-    $api = 'https://www.zhihu.com/api/v4/search/top_search';
+    $api = 'https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=1000';
+    $cookie = getenv('ZHIHU_COOKIE') ?: '';
 
-    $response = file_get_contents($api);
+    ['res' => $response] = httpCurl($api, 'GET', null, ["cookie: $cookie"]);
+
     $data = json_decode($response, true);
-    $list = $data['top_search']['words'] ?? [];
+
+    $list = array_map(function ($e) {
+      return [
+         'title' => $e['target']['title'],
+         'detail' => $e['target']['excerpt'],
+         'cover' => $e['children'][0]['thumbnail'] ?? '',
+         'hot_value_desc' => $e['detail_text'],
+         'answer_cnt' => $e['target']['answer_count'],
+         'follower_cnt' => $e['target']['follower_count'],
+         'comment_cnt' => $e['target']['comment_count'],
+         'created_at' => $e['target']['created'] * 1000,
+         'created' => date('Y-m-d H:i:s', $e['target']['created']),
+         'url' => $e['target']['url'],
+         'link' => $e['target']['url'],
+      ];
+    }, $data['data'] ?? []);
 
     if ($encode === 'json') {
-        $formattedList = array_map(function ($e) {
-            $e['title'] = $e['query'] ?? '';
-            $e['url'] = $e['url'] ?? ('https://www.zhihu.com/search?q=' . urlencode($e['title']));
-
-            return $e;
-        }, $list);
-
-        return responseWithBaseRes($formattedList);
+        return responseWithBaseRes($list);
     } else {
         $text = '';
-        foreach ($list as $index => $item) {
-            $text .= ($index + 1) . '. ' . $item['query'] . "\n";
+        foreach ($list as $idx => $item) {
+            $text .= ($idx + 1) . '. ' . $item['title'] . ' ' . $item['hot_value_desc'] . "\n";
         }
         return $text;
     }

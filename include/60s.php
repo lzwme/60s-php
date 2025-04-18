@@ -1,6 +1,6 @@
 <?php
 
-require_once 'utils.php';
+require_once __DIR__ . '/utils.php';
 
 function fetch60s($encode = 'json', $offset = 0, $isV1 = false, $force = false)
 {
@@ -113,14 +113,14 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false, $force = false)
 
         if ($encode === 'json') {
             return responseWithBaseRes([
-                'news'      => $news,
-                'tip'       => $tip,
-                'date'      => $finalData['date'],
-                'updated' => date('Y-m-d H:i:s', $finalData['updated']),
-                'updated_at'   => $finalData['updated'] ?? 0,
-                'url'       => $finalData['url'] ?? '',
-                'cover'     => $finalData['title_image'] ?? '',
-                'fromCache' => $fromCache,
+                'news'       => $news,
+                'tip'        => $tip,
+                'date'       => $finalData['date'],
+                'updated'    => date('Y-m-d H:i:s', $finalData['updated']),
+                'updated_at' => $finalData['updated'] ?? 0,
+                'url'        => $finalData['url'] ?? '',
+                'cover'      => $finalData['title_image'] ?? '',
+                'fromCache'  => $fromCache,
             ]);
         } else {
             return implode("\n", array_merge($news, [$tip]));
@@ -166,7 +166,15 @@ function fetch60sFromWechat($encode = 'json', $offset = 0, $isV1 = false, $force
                 'fromCache' => $fromCache,
             ]));
         } else {
-            return implode("\n", array_merge($finalData['news'], [$finalData['tip']]));
+            $text = "每天 60s 看世界（{$finalData['date']}）\n\n";
+
+            foreach ($finalData['news'] as $key => $line) {
+                $text .= ($key + 1) . ". $line\n";
+            }
+
+            $text .= "\n【微语】" . $finalData['tip'] ?? '';
+
+            return $text;
         }
     }
 }

@@ -12,11 +12,11 @@ function randomId($size)
 
 function responseWithBaseRes($obj, $message = '', $status = 200, $toText = true)
 {
-    $defaultTips = '数据来自官方，实时更新, 代码开源地址: https://github.com/lzwme/blog-examples/blob/main/examples/60s';
+    $defaultTips = '数据来自官方，实时更新, 代码开源地址: https://github.com/lzwme/60s-php';
 
     $res = [
         'status' => $status,
-        'message' => $message || $defaultTips,
+        'message' => $message ?? $defaultTips,
         'data' => $obj ?: [],
     ];
     return $toText ? json_encode($res, 2) : $res;
@@ -156,4 +156,48 @@ function httpCurl($url, $method = 'GET', $postfields = null, $headers = null, $d
     curl_close($ci);
     // return $response;
     return array('code' => $http_code, 'res' => $response, 'req' => $requestinfo);
+}
+
+function tryGetReqParam($keys, $default = null)
+{
+    $keysList = is_string($keys) ? [$keys] : $keys;
+    foreach ($keysList as $key => $value) {
+        if ($value && isset($_REQUEST[(string) $value])) {
+            return htmlspecialchars($_REQUEST[(string) $value]);
+        }
+    }
+
+    return $default;
+}
+
+function get_real_ip()
+{
+    static $realip;
+    if (isset($_SERVER)) {
+        $realip = $_SERVER['REMOTE_ADDR'];
+        if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && preg_match_all('#\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}#s', $_SERVER['HTTP_X_FORWARDED_FOR'], $matches)) {
+            foreach ($matches[0] as $xip) {
+                if (!preg_match('#^(10|172\.16|192\.168)\.#', $xip)) {
+                    $realip = $xip;
+                    break;
+                }
+            }
+        } elseif (isset($_SERVER['HTTP_CLIENT_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_CLIENT_IP'])) {
+            $realip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (isset($_SERVER['HTTP_CF_CONNECTING_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            $realip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+        } elseif (isset($_SERVER['HTTP_X_REAL_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_X_REAL_IP'])) {
+            $realip = $_SERVER['HTTP_X_REAL_IP'];
+        }
+    } else {
+        if (getenv("HTTP_X_FORWARDED_FOR")) {
+            $realip = getenv("HTTP_X_FORWARDED_FOR");
+        } else if (getenv("HTTP_CLIENT_IP")) {
+            $realip = getenv("HTTP_CLIENT_IP");
+        } else {
+            $realip = getenv("REMOTE_ADDR");
+        }
+    }
+
+    return str_replace("::ffff:", "", $realip);
 }

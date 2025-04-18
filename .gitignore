@@ -7,3 +7,6 @@ tmp
 .cache
 \#cache
 cache
+/blacklist.txt
+ip2region.xdb
+qqwry.dat

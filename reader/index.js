@@ -54,7 +54,7 @@ const R = {
   },
   loadYiyan() {
     axios
-      .get(`https://x.lzw.me/?c=k&t=Date.now()`)
+      .get(`https://x.lzw.me/?c=k&t=${Date.now()}`)
       .then(response => (el.weiyu.innerHTML = response.data['hitokoto']))
       .catch(function (error) {
         h5Utils.toast(`获取一言失败 \uD83D\uDE1E`, { icon: 'warning' });
