@@ -8,7 +8,7 @@ require_once './include/blacklist.php';
 // 分类
 $type = tryGetReqParam(['t', 'type', 'cate'], '60s');
 // 格式
-$encode  = tryGetReqParam(['e', 'encode'], 'json');
+$encode  = tryGetReqParam(['e', 'encode', 'encoding', 'format'], 'json');
 $nocache = isset($_REQUEST['nocache']);
 
 $result = '';
@@ -53,7 +53,7 @@ switch ($type) {
         $result = fetch60s($encode, $_GET['offset'] ?? 0, isset($_GET['v1']), $nocache);
         break;
     case 'ip':
-      require './include/ip/index.php';
+        require './include/ip/index.php';
         $result = IPQuery::handle($encode);
         break;
     case 'maoyan':
@@ -66,7 +66,8 @@ switch ($type) {
         break;
     case 'weather':
         require './include/weather.php';
-        $result = Weather::handle($encode);
+        $city_code = tryGetReqParam(['city_code', 'cityCode', 'city']);
+        $result    = Weather::handle($encode, $city_code, (int) tryGetReqParam(['mini'], 0));
         break;
     case 'answer':
     case 'duanzi':
@@ -75,6 +76,7 @@ switch ($type) {
     case 'yiyan':
     case 'v50':
     case 'kfc':
+    case 'luck':
         require './include/ArrayRandom.php';
         $result = ArrayRandom::handle($type, $encode);
         break;

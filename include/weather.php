@@ -4,10 +4,9 @@ require_once __DIR__ . '/utils.php';
 
 class Weather
 {
-    public static function handle($encoding)
+    public static function handle($encoding, $city_code, $mini = false)
     {
-        $city_code = tryGetReqParam(['city_code', 'cityCode', 'city']) ?? self::getCityCode();
-        $data      = self::getWeather($city_code ?? '101010100');
+        $data = self::getWeather($city_code ?? self::getCityCode() ?? '101010100');
 
         if (! $data || ! isset($data['cityInfo'])) {
             return responseWithBaseRes($data, '未获取到城市信息', 404);
@@ -31,7 +30,15 @@ class Weather
             ];
 
             foreach ($data['data']['forecast'] as $day) {
-                $msg[] = "{$day['ymd']} {$day['week']} {$day['low']} {$day['high']} {$day['type']} {$day['notice']}";
+                if ($mini) {
+                    $day['ymd']  = substr(str_replace('-', '', $day['ymd']), 4);
+                    $day['low']  = str_replace('低温', '', $day['low']);
+                    $day['high'] = str_replace('高温', '', $day['high']);
+                    $day['week'] = str_replace('星期', '', $day['week']);
+                    $msg[]       = "{$day['ymd']} {$day['week']} {$day['low']} {$day['high']} {$day['type']}";
+                } else {
+                    $msg[] = "{$day['ymd']} {$day['week']} {$day['low']} {$day['high']} {$day['type']} {$day['notice']}";
+                }
             }
 
             return implode("\n", $msg);

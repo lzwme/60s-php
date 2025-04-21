@@ -25,7 +25,7 @@ class ArrayRandom
 
             $item = [
                 'luck_desc'      => $item['good-luck'],
-                'luck_rank'      => item['rank'],
+                'luck_rank'      => $item['rank'],
                 'luck_tip'       => $tip,
                 'luck_tip_index' => $tipIdex,
             ];

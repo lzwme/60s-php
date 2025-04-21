@@ -9,28 +9,28 @@
 ## 🪵 API 目录
 
 - 日更
-  - 🌍 60s 读懂世界 [type=60s]
-  - 🏞️ Bing 每日壁纸 [type=bing]
-  - 🪙 汇率查询（支持 160+ 货币） [type=ex-rates]
-  - 📰 历史上的今天 [type=history]
+  - 🌍 [60s 读懂世界](https://60s.lzw.me/?&e=text&type=60s)
+  - 🏞️ [Bing 每日壁纸](https://60s.lzw.me/?e=text&type=bing)
+  - 🪙 [汇率查询（支持 160+ 货币）](https://60s.lzw.me/?e=text&type=ex-rates)
+  - 📰 [历史上的今天](https://60s.lzw.me/?e=text&type=history)
 - 热榜
-  - 📺 哔哩哔哩实时热搜榜 [type=bili]
-  - 👀 猫眼票房排行榜 [type=maoyan]
-  - 🦊 微博实时热搜榜 [type=weibo]
-  - ❓ 知乎实时热搜 [type=zhihu]
-  - 🎵 抖音实时热搜 [type=douyin]
-  - 📰 头条实时热搜 [type=toutiao]
+  - 📺 [哔哩哔哩实时热搜榜](https://60s.lzw.me/?e=text&type=bili)
+  - 👀 [猫眼票房排行榜](https://60s.lzw.me/?e=text&type=maoyan)
+  - 🦊 [微博实时热搜榜](https://60s.lzw.me/?e=text&type=weibo)
+  - ❓ [知乎实时热搜](https://60s.lzw.me/?e=text&type=zhihu)
+  - 🎵 [抖音实时热搜](https://60s.lzw.me/?e=text&type=douyin)
+  - 📰 [头条实时热搜](https://60s.lzw.me/?e=text&type=toutiao)
 - 实用工具
-  - 📡 IP 查询、获取访客公网 IP 地址 [type=ip[&ip=xxx.xxx.xxx.xxx]]
-  - 📊 天气查询 [type=weather&cityCode=101010100]
+  - 📡 [IP 查询、获取访客公网 IP 地址](https://60s.lzw.me/?e=text&type=ip)
+  - 📊 [天气查询](https://60s.lzw.me/?e=text&type=weather&cityCode=101010100)
 - 娱乐
-  - 🎤 唱呀：随机唱歌音频 [type=changya]
-  - 💬 随机一言 [type=yiyan]
-  - 💬 随机KFC v50 段子 [type=v50]
-  - ✨ 随机运势 [type=luck]
-  - 🤣 随机搞笑段子 [type=duanzi]
-  - 🤭 随机发病文学 [type=fabing]
-  - 📖 随机答案之书 [type=answer]
+  - 🎤 [唱呀：随机唱歌音频](https://60s.lzw.me/?e=text&type=changya)
+  - 💬 [随机一言](https://60s.lzw.me/?e=text&type=yiyan)
+  - 💬 [随机KFC v50 段子](https://60s.lzw.me/?e=text&type=v50)
+  - ✨ [随机运势](https://60s.lzw.me/?e=text&type=luck)
+  - 🤣 [随机搞笑段子](https://60s.lzw.me/?e=text&type=duanzi)
+  - 🤭 [随机发病文学](https://60s.lzw.me/?e=text&type=fabing)
+  - 📖 [随机答案之书](https://60s.lzw.me/?e=text&type=answer)
 
 ## 🎨 返回格式
 
@@ -91,16 +91,36 @@
 - [https://60s.lzw.me/?type=history](https://60s.lzw.me/?type=history)
 
 **10. 获取访客公网 IP 地址**
-- [https://60s.lzw.me/?type=ip](https://60s.lzw.me/?type=ip)
+
+- 获取我的公网IP: [https://60s.lzw.me/?type=ip](https://60s.lzw.me/?type=ip)
+- 查询指定IP归属：[https://60s.lzw.me/?type=ip&ip=110.242.68.66](https://60s.lzw.me/?type=ip&ip=110.242.68.66)
 
 **11. 唱呀：随机唱歌音频**
+
 - [https://60s.lzw.me/?type=changya](https://60s.lzw.me/?type=changya)
 
 **12. 猫眼票房排行榜**
+
 - [https://60s.lzw.me/?type=maoyan](https://60s.lzw.me/?type=maoyan)
 
 **13. 天气查询**
-- [https://60s.lzw.me/?type=weather&cityCode=101010100](https://60s.lzw.me/?type=weather&cityCode=101010100)
+
+- 默认获取当前城市天气：[https://60s.lzw.me/?type=weather](https://60s.lzw.me/?type=weather)
+- 指定城市code: [https://60s.lzw.me/?type=weather&cityCode=101010100](https://60s.lzw.me/?type=weather&cityCode=101010100)
+- 文本模式：[https://60s.lzw.me/?type=weather&e=text](https://60s.lzw.me/?type=weather&e=text)
+- 文本模式（简易）：[https://60s.lzw.me/?type=weather&e=text&mini=1](https://60s.lzw.me/?type=weather&e=text&mini=1)
+
+参数说明：使用参数 `cityCode` 指定城市代码，不指定默认为北京。城市代码可在[这里](https://github.com/lzwme/60s-php/blob/main/weather/cityCode.json)查询。
+
+**14. 随机一言、运势、答案之书搞笑段子、发病文学、KFC段子...**
+
+- 一言：[https://60s.lzw.me/?type=yiyan](https://60s.lzw.me/?type=yiyan)
+- 运势：[https://60s.lzw.me/?type=luck](https://60s.lzw.me/?type=luck)
+- 答案之书：[https://60s.lzw.me/?type=answer](https://60s.lzw.me/?type=answer)
+- 高效段子：[https://60s.lzw.me/?type=duanzi](https://60s.lzw.me/?type=duanzi)
+- 发病文学 [https://60s.lzw.me/?type=fabing](https://60s.lzw.me/?type=fabing)
+- 发病文学[name参数]: [https://60s.lzw.me/?type=fabing&name=哥哥](https://60s.lzw.me/?type=fabing&name=哥哥)
+- KFV段子：[https://60s.lzw.me/?type=v50](https://60s.lzw.me/?type=v50)
 
 ## 安装部署
 
