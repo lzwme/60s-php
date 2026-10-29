@@ -6,11 +6,14 @@ class Maoyan
     public static function handle($encoding)
     {
         $info = self::fetchHTMLData();
-        $list = $info['list'];
-        $tips = $info['tips'];
+        $list = is_array($info['list'] ?? null) ? $info['list'] : [];
+        $tips = $info['tips'] ?? '';
 
-        $rawValues = array_column($list, 'rawValue');
-        array_multisort($rawValues, SORT_DESC, $list);
+        // 空数组会让 array_multisort() 抛出 "Array sizes are inconsistent"
+        if ($list !== []) {
+            $rawValues = array_column($list, 'rawValue');
+            array_multisort($rawValues, SORT_DESC, $list);
+        }
 
         $ret = [
             'list'           => [],
@@ -20,18 +23,20 @@ class Maoyan
         ];
 
         foreach ($list as $idx => $e) {
+            $rawValue      = $e['rawValue'] ?? 0;
             $ret['list'][] = [
                 'rank'            => $idx + 1,
-                'maoyan_id'       => $e['movieId'],
-                'movie_name'      => $e['movieName'],
-                'release_year'    => $e['releaseTime'],
-                'box_office'      => $e['rawValue'],
-                'box_office_desc' => self::formatBoxOffice($e['rawValue']),
+                'maoyan_id'       => $e['movieId'] ?? '',
+                'movie_name'      => $e['movieName'] ?? '',
+                'release_year'    => $e['releaseTime'] ?? '',
+                'box_office'      => $rawValue,
+                'box_office_desc' => self::formatBoxOffice($rawValue),
             ];
         }
 
         if ($encoding == 'text') {
-            $msg = `全球电影票房总榜（猫眼）\n\n`;
+            // 原实现使用了反引号运算符（PHP 8.5 起废弃），会把标题当作 shell 命令执行；这里应为普通字符串
+            $msg = "全球电影票房总榜（猫眼）\n\n";
 
             foreach ($ret['list'] as $e) {
                 $msg .= sprintf('%d. %s (%s) - %s', $e['rank'], $e['movie_name'], $e['release_year'], $e['box_office_desc']) . "\n";
@@ -50,7 +55,7 @@ class Maoyan
             'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
         ];
         ['res' => $html] = httpCurl($url, 'GET', null, $headers);
-        $json            = preg_match('/var props = (\{.*?\});/', $html, $matches) ? $matches[1] : '{}';
+        $json            = preg_match('/var props = (\{.*?\});/', (string) $html, $matches) ? $matches[1] : '{}';
         $data            = json_decode($json, true)['data'] ?? [];
 
         return [

@@ -73,9 +73,11 @@ class XdbSearcher
                 $dbFile = __DIR__ . DIRECTORY_SEPARATOR . 'ip2region.xdb';
             }
             // open the xdb binary file
-            $this->handle = fopen($dbFile, "r");
+            $this->handle = @fopen($dbFile, "r");
             if ($this->handle === false) {
-                throw new Exception("failed to open xdb file '%s'", $dbFile);
+                // 原实现把 $dbFile 当作 Exception 的 code 传入（非数字字符串），
+                // PHP 8 下会先抛 TypeError，掩盖了真实错误
+                throw new Exception(sprintf("failed to open xdb file '%s'", $dbFile));
             }
 
             $this->vectorIndex = $vectorIndex;
@@ -86,6 +88,7 @@ class XdbSearcher
     {
         if ($this->handle != null) {
             fclose($this->handle);
+            $this->handle = null;
         }
     }
 
@@ -139,7 +142,8 @@ class XdbSearcher
         $dataLen = 0;
         $dataPtr = null;
         $l = 0;
-        $h = ($ePtr - $sPtr) / self::SegmentIndexSize;
+        // 必须是整数：除法结果在 PHP 中可能是 float，后续对 float 做位运算有精度/类型风险
+        $h = intdiv($ePtr - $sPtr, self::SegmentIndexSize);
         while ($l <= $h) {
             $m = ($l + $h) >> 1;
             $p = $sPtr + $m * self::SegmentIndexSize;
@@ -190,7 +194,11 @@ class XdbSearcher
         }
 
         // read from the file
-        $r = fseek($this->handle, $offset);
+        if ($this->handle === null) {
+            return null;
+        }
+
+        $r = fseek($this->handle, (int) $offset);
         if ($r == -1) {
             return null;
         }

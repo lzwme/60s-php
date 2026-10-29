@@ -1,43 +1,44 @@
 <?php
 
-require_once 'utils.php';
+require_once __DIR__ . '/utils.php';
 
 function fetchEventsOnHistory($encode = 'json', $day = '')
 {
-    if (!$day || strlen($day) !== 4) {
-        $day = date_format(date_create(), 'md');
+    $day = preg_replace('/\D/', '', (string) $day);
+    if (strlen($day) !== 4) {
+        $day = date('md');
     }
 
-    $month = substr($day, 0, 2);
-    $api = "https://baike.baidu.com/cms/home/eventsOnHistory/$month.json";
-    $cachefile = "eventsOnHistory_$month.json";
-    $data = cacheGet($cachefile);
+    $month     = substr($day, 0, 2);
+    $api       = "https://baike.baidu.com/cms/home/eventsOnHistory/{$month}.json";
+    $cachefile = "eventsOnHistory_{$month}.json";
+    $data      = cacheGet($cachefile);
 
-    if (!$data) {
-        $response = file_get_contents($api);
-        $data = json_decode($response, true);
+    if (! is_array($data)) {
+        $content = @file_get_contents($api);
+        $data    = $content === false ? null : json_decode($content, true);
 
-        if ($data) {
+        if (is_array($data)) {
             cacheSet($cachefile, $data, 3600 * 24);
         }
     }
 
-    $list = $data[$month][$day];
+    $list = is_array($data) && is_array($data[$month][$day] ?? null) ? $data[$month][$day] : [];
 
-    if (is_array($list)) {
-        foreach ($list as $i => $value) {
-            $value['title'] = strip_tags($value['title']);
-            $list[$i] = $value;
+    foreach ($list as $i => $value) {
+        if (is_array($value)) {
+            $list[$i]['title'] = strip_tags((string) ($value['title'] ?? ''));
         }
     }
 
     if ($encode === 'json') {
         return responseWithBaseRes($list);
-    } else {
-        $rawRes = array_map(function ($e, $i) {
-            return str_pad(($i + 1), 2, '0', STR_PAD_LEFT) . '. [' . $e['year'] . '] ' . $e['title'];;
-        }, $list, array_keys($list));
-
-        return implode("\n", $rawRes);
     }
+
+    $rawRes = [];
+    foreach ($list as $i => $e) {
+        $rawRes[] = str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT) . '. [' . ($e['year'] ?? '') . '] ' . ($e['title'] ?? '');
+    }
+
+    return implode("\n", $rawRes);
 }

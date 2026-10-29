@@ -2,10 +2,12 @@
 
 function randomId($size)
 {
+    $size     = max(0, (int) $size);
     $alphabet = '1234567890abcdefghijklmnopqrstuvwxyz';
-    $str = '';
+    $str      = '';
+    $max      = strlen($alphabet) - 1;
     for ($i = 0; $i < $size; $i++) {
-        $str .= $alphabet[rand(0, strlen($alphabet) - 1)];
+        $str .= $alphabet[rand(0, $max)];
     }
     return $str;
 }
@@ -15,27 +17,61 @@ function responseWithBaseRes($obj, $message = '', $status = 200, $toText = true)
     $defaultTips = '数据来自官方，实时更新, 代码开源地址: https://github.com/lzwme/60s-php';
 
     $res = [
-        'status' => $status,
-        'message' => $message ?? $defaultTips,
-        'data' => $obj ?: [],
+        'status'  => (int) $status,
+        // 这里必须用 ?: 而不是 ??，否则传入空字符串时不会回退到默认提示
+        'message' => $message ?: $defaultTips,
+        'data'    => $obj ?: [],
     ];
-    return $toText ? json_encode($res, 2) : $res;
+
+    if (! $toText) {
+        return $res;
+    }
+
+    $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
+    $json  = json_encode($res, $flags);
+
+    if ($json === false) {
+        // 极端数据（递归引用、INF/NAN 等）下的兜底，保证始终返回合法 JSON
+        $res['data'] = [];
+        $json        = json_encode($res, $flags);
+    }
+
+    return $json === false ? '{"status":500,"message":"json encode error","data":[]}' : $json;
 }
 
-function transferText($str, $mode)
+function transferText($str, $mode = '')
 {
+    $str = (string) $str;
+
     if ($mode === 'a2u') {
-        $callback = function ($matches) {
-            return chr((int) $matches[1]);
-        };
-        return preg_replace_callback('/&#(\d+);/', $callback, $str);
-    } else {
-        $result = '';
-        for ($i = 0; $i < strlen($str); $i++) {
-            $result .= '&#' . ord($str[$i]) . ';';
-        }
-        return $result;
+        return preg_replace_callback('/&#(\d+);/', function ($matches) {
+            // chr() 在 PHP 8.5 起会对超出 0-255 的值给出废弃提示，这里显式取模
+            return chr(((int) $matches[1]) % 256);
+        }, $str);
     }
+
+    $result = '';
+    $len    = strlen($str);
+    for ($i = 0; $i < $len; $i++) {
+        $result .= '&#' . ord($str[$i]) . ';';
+    }
+
+    return $result;
+}
+
+/**
+ * 是否启用 SSL 证书校验（默认开启）。
+ * 个别老服务器缺少 CA 根证书时可通过环境变量 CURL_SSL_VERIFY=0 临时关闭。
+ */
+function sslVerifyEnabled()
+{
+    static $enabled = null;
+    if ($enabled === null) {
+        $env     = strtolower(trim((string) getenv('CURL_SSL_VERIFY')));
+        $enabled = ! in_array($env, ['0', 'false', 'no', 'off'], true);
+    }
+
+    return $enabled;
 }
 
 function reqGet($url, $type = 'get')
@@ -45,87 +81,139 @@ function reqGet($url, $type = 'get')
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); // 以字符串返回
         curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0");
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
         if (preg_match('/^https:\/\//i', $url)) {
-          curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-          curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, sslVerifyEnabled());
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, sslVerifyEnabled() ? 2 : 0);
         }
 
         $result = curl_exec($ch);
-        curl_close($ch);
+        // PHP 8.5 起 curl_close() 已被废弃；PHP >= 8.0 的 CurlHandle 离开作用域会自动释放
         return $result;
-    } else {
-        $stream_opts = ["ssl" => ["verify_peer" => false, "verify_peer_name" => false]];
-        return file_get_contents($url, false, stream_context_create($stream_opts));
     }
+
+    $opts = [
+        'http' => ['timeout' => 20, 'follow_location' => 1],
+        'ssl'  => [
+            'verify_peer'      => sslVerifyEnabled(),
+            'verify_peer_name' => sslVerifyEnabled(),
+        ],
+    ];
+
+    return @file_get_contents($url, false, stream_context_create($opts));
 }
 
-$CACHE_DIR = './.cache/';
+$CACHE_DIR = __DIR__ . '/../.cache/';
+
+/**
+ * 解析缓存文件路径。
+ * xxx.json 形式直接作为文件名（需过滤路径字符），其余 key 使用 md5，避免路径穿越。
+ */
+function cacheFilePath($key)
+{
+    global $CACHE_DIR;
+    $key = (string) $key;
+
+    $suffix = strrchr($key, '.');
+    if ($suffix !== false && strtolower(substr($suffix, 1)) === 'json') {
+        $name = ltrim(preg_replace('/[^A-Za-z0-9_.\-]/', '_', $key), '.');
+        if ($name !== '') {
+            return $CACHE_DIR . $name;
+        }
+    }
+
+    return $CACHE_DIR . md5($key);
+}
 
 function cacheSet($key, $data, $maxAge = 0)
 {
     global $CACHE_DIR;
-    if (!file_exists($CACHE_DIR)) {
-        mkdir($CACHE_DIR);
+
+    if (! is_dir($CACHE_DIR) && ! @mkdir($CACHE_DIR, 0775, true) && ! is_dir($CACHE_DIR)) {
+        return false;
     }
 
-    $filepath = $CACHE_DIR . (substr(strrchr($key, '.'), 1) == 'json' ? $key : md5($key));
+    $payload = json_encode(
+        ['data' => $data, 't' => $maxAge ? time() + (int) $maxAge : 0],
+        JSON_INVALID_UTF8_SUBSTITUTE
+    );
+    if ($payload === false) {
+        return false;
+    }
 
-    file_put_contents($filepath, json_encode([
-        'data' => $data,
-        't' => $maxAge ? time() + $maxAge : 0,
-    ]));
+    // 先写临时文件再原子替换，避免并发请求读到写了一半的缓存
+    $filepath = cacheFilePath($key);
+    $tmp      = $filepath . '.' . uniqid('', true) . '.tmp';
+
+    if (@file_put_contents($tmp, $payload, LOCK_EX) === false) {
+        return false;
+    }
+
+    if (! @rename($tmp, $filepath)) {
+        @unlink($tmp);
+        return false;
+    }
+
+    return true;
 }
 
 function cacheGet($key, $defaults = null)
 {
-    global $CACHE_DIR;
-    $filepath = $CACHE_DIR . (substr(strrchr($key, '.'), 1) == 'json' ? $key : md5($key));
+    $filepath = cacheFilePath($key);
 
-    if (file_exists($filepath)) {
-        $result = json_decode(file_get_contents($filepath), true);
-
-        if ($result && 0 == $result['t'] || time() < $result['t']) {
-            return $result['data'];
-        }
-
-        unlink($filepath);
+    if (! is_file($filepath)) {
+        return $defaults;
     }
 
+    $raw = @file_get_contents($filepath);
+    if ($raw === false || $raw === '') {
+        return $defaults;
+    }
+
+    $result = json_decode($raw, true);
+    if (! is_array($result) || ! array_key_exists('data', $result)) {
+        @unlink($filepath);
+        return $defaults;
+    }
+
+    $expiresAt = (int) ($result['t'] ?? 0);
+    if ($expiresAt === 0 || time() < $expiresAt) {
+        return $result['data'];
+    }
+
+    @unlink($filepath);
     return $defaults;
 }
 
 function httpCurl($url, $method = 'GET', $postfields = null, $headers = null, $debug = false)
 {
-    $method = strtoupper($method);
-    $ci = curl_init();
+    $method = strtoupper((string) $method);
+    $ci     = curl_init();
 
     /* Curl settings */
     curl_setopt($ci, CURLOPT_URL, $url);
-    curl_setopt($ci, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+    curl_setopt($ci, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
     curl_setopt($ci, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0");
-    curl_setopt($ci, CURLOPT_CONNECTTIMEOUT, 60); /* 在发起连接前等待的时间，如果设置为0，则无限等待 */
-    curl_setopt($ci, CURLOPT_TIMEOUT, 7); /* 设置cURL允许执行的最长秒数 */
+    curl_setopt($ci, CURLOPT_CONNECTTIMEOUT, 10); /* 在发起连接前等待的时间，如果设置为0，则无限等待 */
+    curl_setopt($ci, CURLOPT_TIMEOUT, 15); /* 设置cURL允许执行的最长秒数 */
     curl_setopt($ci, CURLOPT_RETURNTRANSFER, true);
-
-    //curl_setopt($ci, CURLOPT_HEADER, true); // 启用时会将头文件的信息作为数据流输出
-    // 是否不需要响应的正文, 在只需要响应头的情况下可以不要正文
-    //curl_setopt($curl, CURLOPT_NOBODY, true);
-
     curl_setopt($ci, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($ci, CURLOPT_MAXREDIRS, 2); // 指定最多的HTTP重定向的数量，这个选项是和CURLOPT_FOLLOWLOCATION一起使用的
-    curl_setopt($ci, CURLINFO_HEADER_OUT, true);
-    // curl_setopt($ci, CURLOPT_COOKIE, $Cookiestr);
+
+    // 注意：CURLINFO_HEADER_OUT 是 curl_getinfo() 的常量，不是合法 option，设置为 CURLOPT_HEADER 才有意义
 
     //设置请求头
-    if (!empty($headers)) {
+    if (! empty($headers) && is_array($headers)) {
         curl_setopt($ci, CURLOPT_HTTPHEADER, $headers);
     }
 
     switch ($method) {
         case "POST":
             curl_setopt($ci, CURLOPT_POST, true);
-            if (!empty($postfields)) {
+            if (! empty($postfields)) {
                 $tmpdatastr = is_array($postfields) ? http_build_query($postfields) : $postfields;
                 curl_setopt($ci, CURLOPT_POSTFIELDS, $tmpdatastr);
             }
@@ -135,15 +223,20 @@ function httpCurl($url, $method = 'GET', $postfields = null, $headers = null, $d
             break;
     }
 
-    $ssl = preg_match('/^https:\/\//i', $url) ? true : false;
+    $ssl = (bool) preg_match('/^https:\/\//i', $url);
     if ($ssl) {
-        curl_setopt($ci, CURLOPT_SSL_VERIFYPEER, false); // https请求 不验证证书和hosts
-        curl_setopt($ci, CURLOPT_SSL_VERIFYHOST, false); // 不从证书中检查SSL加密算法是否存在
+        curl_setopt($ci, CURLOPT_SSL_VERIFYPEER, sslVerifyEnabled()); // https 请求校验证书
+        curl_setopt($ci, CURLOPT_SSL_VERIFYHOST, sslVerifyEnabled() ? 2 : 0);
     }
 
-    $response = curl_exec($ci);
+    $response    = curl_exec($ci);
     $requestinfo = curl_getinfo($ci);
-    $http_code = $requestinfo['http_code'];
+    $http_code   = (int) ($requestinfo['http_code'] ?? 0);
+
+    if ($response === false) {
+        $requestinfo['error'] = curl_error($ci);
+        $requestinfo['errno'] = curl_errno($ci);
+    }
 
     if ($debug) {
         echo "=====post data======\r\n";
@@ -153,41 +246,96 @@ function httpCurl($url, $method = 'GET', $postfields = null, $headers = null, $d
         echo "=====response=====\r\n";
         print_r($response);
     }
-    curl_close($ci);
-    // return $response;
+
+    // PHP 8.5 起 curl_close() 已被废弃，句柄由 GC 自动释放
     return array('code' => $http_code, 'res' => $response, 'req' => $requestinfo);
 }
 
 function tryGetReqParam($keys, $default = null)
 {
-    $keysList = is_string($keys) ? [$keys] : $keys;
-    foreach ($keysList as $key => $value) {
-        if ($value && isset($_REQUEST[(string) $value])) {
-            return htmlspecialchars($_REQUEST[(string) $value]);
+    $keysList = is_string($keys) ? [$keys] : (array) $keys;
+
+    foreach ($keysList as $key) {
+        if (! is_string($key) || $key === '' || ! isset($_REQUEST[$key])) {
+            continue;
         }
+
+        $value = $_REQUEST[$key];
+
+        // 只接受标量；PHP 8 起 htmlspecialchars(array) 会直接抛 TypeError
+        if (! is_scalar($value)) {
+            continue;
+        }
+
+        // 不使用 htmlspecialchars：参数会被放入 JSON、URL、正则、缓存名等场景，
+        // HTML 转义不可逆（会把 & 变成 &amp; 等），仅在输出 HTML 时才需要
+        return trim(strip_tags((string) $value));
     }
 
     return $default;
 }
 
+/**
+ * 获取布尔型请求参数（如 v1、trending、cors、nocache）。
+ * 裸参数（?v1）视为 true；v1=0 / v1=false 视为 false。
+ */
+function tryGetReqFlag($key)
+{
+    if (! array_key_exists($key, $_REQUEST) || ! is_scalar($_REQUEST[$key])) {
+        return false;
+    }
+
+    $value = $_REQUEST[$key];
+    if ($value === '' || $value === null) {
+        return true;
+    }
+
+    return (bool) filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+}
+
+/**
+ * 判断是否为内网/保留地址。
+ */
+function isPrivateIp($ip)
+{
+    return filter_var(
+        $ip,
+        FILTER_VALIDATE_IP,
+        FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+    ) === false;
+}
+
 function get_real_ip()
 {
-    static $realip;
+    static $realip = null;
+    if ($realip !== null) {
+        return $realip;
+    }
+
+    $serverValue = function ($key) {
+        return isset($_SERVER[$key]) && is_string($_SERVER[$key]) ? trim($_SERVER[$key]) : '';
+    };
+
+    $realip = '';
+
     if (isset($_SERVER)) {
-        $realip = $_SERVER['REMOTE_ADDR'];
-        if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && preg_match_all('#\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}#s', $_SERVER['HTTP_X_FORWARDED_FOR'], $matches)) {
-            foreach ($matches[0] as $xip) {
-                if (!preg_match('#^(10|172\.16|192\.168)\.#', $xip)) {
+        $realip = $serverValue('REMOTE_ADDR');
+
+        $forwarded = $serverValue('HTTP_X_FORWARDED_FOR');
+        if ($forwarded !== '') {
+            foreach (explode(',', $forwarded) as $xip) {
+                $xip = trim($xip);
+                if (filter_var($xip, FILTER_VALIDATE_IP) && ! isPrivateIp($xip)) {
                     $realip = $xip;
                     break;
                 }
             }
-        } elseif (isset($_SERVER['HTTP_CLIENT_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_CLIENT_IP'])) {
-            $realip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (isset($_SERVER['HTTP_CF_CONNECTING_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_CF_CONNECTING_IP'])) {
-            $realip = $_SERVER['HTTP_CF_CONNECTING_IP'];
-        } elseif (isset($_SERVER['HTTP_X_REAL_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_X_REAL_IP'])) {
-            $realip = $_SERVER['HTTP_X_REAL_IP'];
+        } elseif (($clientIp = $serverValue('HTTP_CLIENT_IP')) !== '' && filter_var($clientIp, FILTER_VALIDATE_IP)) {
+            $realip = $clientIp;
+        } elseif (($cfIp = $serverValue('HTTP_CF_CONNECTING_IP')) !== '' && filter_var($cfIp, FILTER_VALIDATE_IP)) {
+            $realip = $cfIp;
+        } elseif (($realIp = $serverValue('HTTP_X_REAL_IP')) !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
+            $realip = $realIp;
         }
     } else {
         if (getenv("HTTP_X_FORWARDED_FOR")) {
@@ -195,9 +343,9 @@ function get_real_ip()
         } else if (getenv("HTTP_CLIENT_IP")) {
             $realip = getenv("HTTP_CLIENT_IP");
         } else {
-            $realip = getenv("REMOTE_ADDR");
+            $realip = (string) getenv("REMOTE_ADDR");
         }
     }
 
-    return str_replace("::ffff:", "", $realip);
+    return $realip = str_replace("::ffff:", "", $realip);
 }

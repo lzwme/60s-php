@@ -6,38 +6,49 @@ class Weather
 {
     public static function handle($encoding, $city_code, $mini = false)
     {
-        $data = self::getWeather($city_code ?? self::getCityCode() ?? '101010100');
+        // 注意：city_code 传入空字符串时 ?? 不会回退，需用 ?:
+        $city_code = preg_match('/^\d{6,9}$/', (string) $city_code) ? $city_code : '';
+        $data      = self::getWeather($city_code ?: self::getCityCode() ?: '101010100');
 
         if (! $data || ! isset($data['cityInfo'])) {
             return responseWithBaseRes($data, '未获取到城市信息', 404);
         }
 
         if ($encoding === 'text') {
-            $tody = $data['data']['forecast'][0];
-            $msg  = [
-                "城市：{$data['cityInfo']['city']}",
-                "日期：{$tody['ymd']} {$tody['week']}",
-                "天气：{$tody['type']}",
-                "温度：{$tody['high']} {$tody['low']}",
-                "湿度：{$data['data']['shidu']}",
-                "空气质量：{$data['data']['quality']}",
-                "PM2.5：{$data['data']['pm25']}",
-                "PM10：{$data['data']['pm10']}",
-                "风力风向：{$tody['fx']} {$tody['fl']}",
-                "感冒指数：{$data['data']['ganmao']}",
-                "[💌]温馨提示：{$tody['notice']}",
-                "更新时间：{$data['time']}\n",
+            $forecast = is_array($data['data']['forecast'] ?? null) ? $data['data']['forecast'] : [];
+            $tody     = is_array($forecast[0] ?? null) ? $forecast[0] : [];
+
+            $msg = [
+                '城市：' . ($data['cityInfo']['city'] ?? ''),
+                '日期：' . ($tody['ymd'] ?? '') . ' ' . ($tody['week'] ?? ''),
+                '天气：' . ($tody['type'] ?? ''),
+                '温度：' . ($tody['high'] ?? '') . ' ' . ($tody['low'] ?? ''),
+                '湿度：' . ($data['data']['shidu'] ?? ''),
+                '空气质量：' . ($data['data']['quality'] ?? ''),
+                'PM2.5：' . ($data['data']['pm25'] ?? ''),
+                'PM10：' . ($data['data']['pm10'] ?? ''),
+                '风力风向：' . ($tody['fx'] ?? '') . ' ' . ($tody['fl'] ?? ''),
+                '感冒指数：' . ($data['data']['ganmao'] ?? ''),
+                '[💌]温馨提示：' . ($tody['notice'] ?? ''),
+                '更新时间：' . ($data['time'] ?? '') . "\n",
             ];
 
-            foreach ($data['data']['forecast'] as $day) {
+            foreach ($forecast as $day) {
+                $ymd    = (string) ($day['ymd'] ?? '');
+                $low    = (string) ($day['low'] ?? '');
+                $high   = (string) ($day['high'] ?? '');
+                $week   = (string) ($day['week'] ?? '');
+                $type   = (string) ($day['type'] ?? '');
+                $notice = (string) ($day['notice'] ?? '');
+
                 if ($mini) {
-                    $day['ymd']  = substr(str_replace('-', '', $day['ymd']), 4);
-                    $day['low']  = str_replace('低温', '', $day['low']);
-                    $day['high'] = str_replace('高温', '', $day['high']);
-                    $day['week'] = str_replace('星期', '', $day['week']);
-                    $msg[]       = "{$day['ymd']} {$day['week']} {$day['low']} {$day['high']} {$day['type']}";
+                    $ymd    = substr(str_replace('-', '', $ymd), 4);
+                    $low    = str_replace('低温', '', $low);
+                    $high   = str_replace('高温', '', $high);
+                    $week   = str_replace('星期', '', $week);
+                    $msg[]  = "{$ymd} {$week} {$low} {$high} {$type}";
                 } else {
-                    $msg[] = "{$day['ymd']} {$day['week']} {$day['low']} {$day['high']} {$day['type']} {$day['notice']}";
+                    $msg[] = "{$ymd} {$week} {$low} {$high} {$type} {$notice}";
                 }
             }
 
@@ -48,9 +59,14 @@ class Weather
     }
     public static function getWeather($city_code)
     {
-        $api     = "http://t.weather.itboy.net/api/weather/city/${city_code}";
-        $weather = json_decode(file_get_contents($api), true);
-        return $weather;
+        // ${var} 插值写法自 PHP 8.2 起废弃，PHP 8.5 仍会告警，改为 {$var}
+        $api     = "http://t.weather.itboy.net/api/weather/city/{$city_code}";
+        $content = @file_get_contents($api);
+        if ($content === false) {
+            return null;
+        }
+
+        return json_decode($content, true);
     }
     public static function getCityCode()
     {
@@ -61,18 +77,27 @@ class Weather
         $cityInfo = cacheGet($cacheKey);
 
         if (! $cityInfo) {
-            $cityInfo = json_decode(file_get_contents($cityApi), true);
-            if ($cityInfo) {
+            $content = @file_get_contents($cityApi);
+            if ($content !== false) {
+                $cityInfo = json_decode($content, true);
+            }
+            if (is_array($cityInfo) && $cityInfo) {
                 cacheSet($cacheKey, $cityInfo, 3600 * 24 * 7);
             }
         }
 
         require_once __DIR__ . '/ip/index.php';
         $info = IPQuery::getIpInfo($ip);
-        $city = str_replace('市', '', $info['city']);
+        if (! is_array($info)) {
+            return null;
+        }
 
-        if (isset($cityInfo[$city])) {
+        $city = str_replace('市', '', (string) ($info['city'] ?? ''));
+
+        if ($city !== '' && is_array($cityInfo) && isset($cityInfo[$city])) {
             return $cityInfo[$city];
         }
+
+        return null;
     }
 }

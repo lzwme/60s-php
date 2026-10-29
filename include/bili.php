@@ -1,38 +1,44 @@
 <?php
-require_once 'utils.php';
+require_once __DIR__ . '/utils.php';
 
 function fetchBili($encode = 'json')
 {
-    $api = 'https://app.bilibili.com/x/v2/search/trending/ranking';
+    $api  = 'https://app.bilibili.com/x/v2/search/trending/ranking';
     $list = cacheGet($api);
 
-    if (!$list) {
-        $response = file_get_contents($api);
-        $data = json_decode($response, true)['data'];
+    if (! is_array($list)) {
+        $content = @file_get_contents($api);
+        $data    = $content === false ? null : json_decode($content, true);
 
-        $list = isset($data['list']) ? array_filter($data['list'], function ($e) {
-            return isset($e['is_commercial']) && $e['is_commercial'] === '0';
-        }) : [];
+        $rawList = $data['data']['list'] ?? null;
+        $rawList = is_array($rawList) ? $rawList : [];
 
-        if (isset($data['list'])) {
+        $list = array_values(array_filter($rawList, function ($e) {
+            return is_array($e) && isset($e['is_commercial']) && $e['is_commercial'] === '0';
+        }));
+
+        if ($list !== []) {
             cacheSet($api, $list, 600);
         }
     }
 
+    $list = is_array($list) ? $list : [];
+
     if ($encode === 'json') {
         $formattedList = array_map(function ($e) {
             $e['title'] = $e['show_name'] ?? '';
-            $e['url'] = $e['url'] ?? ('https://search.bilibili.com/all?keyword=' . urlencode($e['title']));
+            $e['url']   = $e['url'] ?? ('https://search.bilibili.com/all?keyword=' . urlencode($e['title']));
 
             return $e;
         }, $list);
 
         return responseWithBaseRes($formattedList);
-    } else {
-        $rawRes = array_map(function ($e, $i) {
-            return ($i + 1) . '. ' . (isset($e['show_name']) ? $e['show_name'] : '');
-        }, $list, array_keys($list));
-
-        return implode("\n", $rawRes);
     }
+
+    $rawRes = [];
+    foreach ($list as $i => $e) {
+        $rawRes[] = ($i + 1) . '. ' . ($e['show_name'] ?? '');
+    }
+
+    return implode("\n", $rawRes);
 }

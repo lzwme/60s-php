@@ -1,44 +1,43 @@
 <?php
-require_once 'utils.php';
+require_once __DIR__ . '/utils.php';
 
 function fetchZhihu($encode = 'json')
 {
-    $api = 'https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=1000';
+    $api    = 'https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=1000';
     $cookie = getenv('ZHIHU_COOKIE') ?: '';
 
-    ['res' => $response] = httpCurl($api, 'GET', null, ["cookie: $cookie"]);
+    ['res' => $response] = httpCurl($api, 'GET', null, ["cookie: {$cookie}"]);
 
-    $data = json_decode($response, true);
+    $data = is_string($response) ? json_decode($response, true) : null;
+    $raw  = is_array($data['data'] ?? null) ? $data['data'] : [];
 
     $list = array_map(function ($e) {
-      return [
-         'title' => $e['target']['title'],
-         'detail' => $e['target']['excerpt'],
-         'cover' => $e['children'][0]['thumbnail'] ?? '',
-         'hot_value_desc' => $e['detail_text'],
-         'answer_cnt' => $e['target']['answer_count'],
-         'follower_cnt' => $e['target']['follower_count'],
-         'comment_cnt' => $e['target']['comment_count'],
-         'created_at' => $e['target']['created'] * 1000,
-         'created' => date('Y-m-d H:i:s', $e['target']['created']),
-         'url' => $e['target']['url'],
-         'link' => $e['target']['url'],
-      ];
-    }, $data['data'] ?? []);
+        $target  = is_array($e['target'] ?? null) ? $e['target'] : [];
+        $created = (int) ($target['created'] ?? 0);
+
+        return [
+            'title'          => $target['title'] ?? '',
+            'detail'         => $target['excerpt'] ?? '',
+            'cover'          => $e['children'][0]['thumbnail'] ?? '',
+            'hot_value_desc' => $e['detail_text'] ?? '',
+            'answer_cnt'     => $target['answer_count'] ?? 0,
+            'follower_cnt'   => $target['follower_count'] ?? 0,
+            'comment_cnt'    => $target['comment_count'] ?? 0,
+            'created_at'     => $created * 1000,
+            'created'        => $created > 0 ? date('Y-m-d H:i:s', $created) : '',
+            'url'            => $target['url'] ?? '',
+            'link'           => $target['url'] ?? '',
+        ];
+    }, $raw);
 
     if ($encode === 'json') {
         return responseWithBaseRes($list);
-    } else {
-        $text = '';
-        foreach ($list as $idx => $item) {
-            $text .= ($idx + 1) . '. ' . $item['title'] . ' ' . $item['hot_value_desc'] . "\n";
-        }
-        return $text;
     }
-}
 
-// try {
-//     print_r(fetchZhihu());
-// } catch (Exception $e) {
-//     echo 'Error: ' . $e->getMessage();
-// }
+    $text = '';
+    foreach ($list as $idx => $item) {
+        $text .= ($idx + 1) . '. ' . $item['title'] . ' ' . $item['hot_value_desc'] . "\n";
+    }
+
+    return $text;
+}

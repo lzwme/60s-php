@@ -130,11 +130,15 @@ function fetch60s($encode = 'json', $offset = 0, $isV1 = false, $force = false)
 
 function fetch60sFromWechat($encode = 'json', $offset = 0, $isV1 = false, $force = false)
 {
-    $today     = date('Y-m-d', time() + 8 * 3600 - (int) $offset * 24 * 3600);
+    // 时区已在入口通过 date_default_timezone_set('Asia/Shanghai') 设置，
+    // 再叠加 8 小时会导致 00:00-08:00 之间取到「明天」的数据（回归自 81cd5d2）
+    $today     = date('Y-m-d', time() - (int) $offset * 24 * 3600);
     $cachefile = '60s_wechat_' . $today . '.json';
 
     $finalData = cacheGet($cachefile, []);
-    $fromCache = isset($finalData) && isset($finalData['news']);
+    // 缓存内容可能损坏或来自旧版本，必须保证后续 array_merge / foreach 不会收到非数组
+    $finalData = is_array($finalData) ? $finalData : [];
+    $fromCache = ! empty($finalData['news']);
 
     if (! $finalData || $force) {
         $ghproxy = getenv('GH_PROXY_URL');
@@ -166,13 +170,13 @@ function fetch60sFromWechat($encode = 'json', $offset = 0, $isV1 = false, $force
                 'fromCache' => $fromCache,
             ]));
         } else {
-            $text = "每天 60s 看世界（{$finalData['date']}）\n\n";
+            $text = "每天 60s 看世界（" . ($finalData['date'] ?? $today) . "）\n\n";
 
-            foreach ($finalData['news'] as $key => $line) {
+            foreach ($finalData['news'] ?? [] as $key => $line) {
                 $text .= ($key + 1) . ". $line\n";
             }
 
-            $text .= "\n【微语】" . $finalData['tip'] ?? '';
+            $text .= "\n【微语】" . ($finalData['tip'] ?? '');
 
             return $text;
         }

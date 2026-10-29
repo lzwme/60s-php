@@ -1,5 +1,5 @@
 <?php
-require_once 'utils.php';
+require_once __DIR__ . '/utils.php';
 
 function fetchWeibo($encode = 'json')
 {
@@ -7,35 +7,39 @@ function fetchWeibo($encode = 'json')
 
     $filteredList = cacheGet($api);
 
-    if (!$filteredList) {
-        $response = file_get_contents($api);
-        $data = json_decode($response, true);
+    if (! is_array($filteredList)) {
+        $content = @file_get_contents($api);
+        $data    = $content === false ? null : json_decode($content, true);
 
-        $list = ($data['data'] ?? [])['realtime'] ?? [];
-        $filteredList = array_filter($list, function ($e) {
-            return !isset($e['is_ad']) || !$e['is_ad'];
-        });
+        $list         = is_array($data['data']['realtime'] ?? null) ? $data['data']['realtime'] : [];
+        $filteredList = array_values(array_filter($list, function ($e) {
+            return is_array($e) && empty($e['is_ad']);
+        }));
 
-        cacheSet($api, $filteredList, 120);
+        if ($filteredList !== []) {
+            cacheSet($api, $filteredList, 120);
+        }
     }
+
+    $filteredList = is_array($filteredList) ? $filteredList : [];
 
     if ($encode === 'json') {
         $formattedList = array_map(function ($e) {
-            $e['title'] = $e['word'] ?? '';
-            $e['url'] = 'https://s.weibo.com/weibo?q=' . urlencode($e['word_scheme'] || $e['title']);
+            $title      = $e['word'] ?? '';
+            $e['title'] = $title;
+            // 原实现使用 ||，当 word_scheme 为空字符串时会得到 "" 而不是 title
+            $e['url']   = 'https://s.weibo.com/weibo?q=' . urlencode($e['word_scheme'] ?: $title);
 
             return $e;
         }, $filteredList);
 
-        return responseWithBaseRes(array_values($formattedList));
-    } else {
-        $rawRes = array_map(function ($e, $i) {
-            return ($i + 1) . '. ' . ($e['word'] ?? '');
-        }, $filteredList, array_keys($filteredList));
-
-        return implode("\n", $rawRes);
+        return responseWithBaseRes($formattedList);
     }
 
-}
+    $rawRes = [];
+    foreach ($filteredList as $i => $e) {
+        $rawRes[] = ($i + 1) . '. ' . ($e['word'] ?? '');
+    }
 
-// print_r(fetchWeibo('json'));
+    return implode("\n", $rawRes);
+}
